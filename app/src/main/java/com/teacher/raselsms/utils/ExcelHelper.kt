@@ -104,8 +104,8 @@ object ExcelHelper {
      */
     private fun parseHtmlTable(html: String): List<List<String>> {
         val rows = mutableListOf<List<String>>()
-        val rowRegex = Regex("<tr[^>]*>(.*?)</tr>", RegexOption.DOT_MATCHES_ALL or RegexOption.IGNORE_CASE)
-        val cellRegex = Regex("<t[dh][^>]*>(.*?)</t[dh]>", RegexOption.DOT_MATCHES_ALL or RegexOption.IGNORE_CASE)
+        val rowRegex = Regex("<tr[^>]*>(.*?)</tr>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        val cellRegex = Regex("<t[dh][^>]*>(.*?)</t[dh]>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
 
         val rowMatches = rowRegex.findAll(html)
         for (rowMatch in rowMatches) {
