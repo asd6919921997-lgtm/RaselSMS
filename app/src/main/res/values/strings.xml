@@ -1,0 +1,50 @@
+<resources>
+    <string name="app_name">راسل للمعلمين</string>
+    <string name="app_subtitle">إرسال الرسائل النصية الجماعية لأولياء الأمور</string>
+
+    <!-- الأذونات -->
+    <string name="permission_required_title">مطلوب منح الصلاحيات</string>
+    <string name="permission_required_desc">يحتاج التطبيق لصلاحيات إرسال الرسائل (SMS) والتعرف على الشرائح (SIM 1 / SIM 2) لإتمام مهمة الإرسال المباشر.</string>
+    <string name="grant_permissions">منح الصلاحيات الآن</string>
+
+    <!-- اختيار الشريحة -->
+    <string name="sim_selection_title">1. تحديد شريحة الإرسال</string>
+    <string name="sim_selection_hint">اختر الشريحة المراد إرسال الرسائل منها:</string>
+    <string name="sim_slot_1">الشريحة 1</string>
+    <string name="sim_slot_2">الشريحة 2</string>
+    <string name="no_sim_detected">لم يتم العثور على شرائح نشطة أو الصلاحية غير ممنوحة</string>
+
+    <!-- استيراد الملف -->
+    <string name="import_title">2. استيراد أرقام أولياء الأمور</string>
+    <string name="import_hint">اختر ملف إكسل (.xlsx) أو (.csv) يحتوي على أسماء الطلاب وأرقام الجوالات:</string>
+    <string name="btn_choose_file">📂 اختيار ملف الإكسل (Excel / CSV)</string>
+    <string name="file_loaded_summary">تم تحميل: %1$d طالب (%2$d رقم صحيح)</string>
+    <string name="file_error">تعذر قراءة الملف، تأكد من صحة الملف وصيغته</string>
+
+    <!-- معاينة وتحديد المستلمين -->
+    <string name="review_title">3. معاينة وتدقيق المستلمين</string>
+    <string name="select_all">تحديد الكل</string>
+    <string name="deselect_all">إلغاء التحديد</string>
+    <string name="selected_count">المحدد للإرسال: %1$d من %2$d</string>
+    <string name="status_pending">في الانتظار</string>
+    <string name="status_sent">تم الإرسال ✓</string>
+    <string name="status_failed">فشل ✕</string>
+    <string name="status_invalid">رقم غير صالح ⚠</string>
+
+    <!-- محرر الرسالة الموحدة -->
+    <string name="message_composer_title">4. نص الرسالة الموحد</string>
+    <string name="message_composer_hint">اكتب هنا نص الرسالة الموحد الذي سيصل لجميع أولياء الأمور...\nيمكنك اختصار الكلمات للتحكم بحجم الرسالة والتكلفة.</string>
+    <string name="insert_name_tag">إدراج اسم الطالب {الاسم}</string>
+    <string name="sms_stats">عدد الحروف: %1$d | أجزاء الرسالة: %2$d SMS</string>
+    <string name="sms_single_notice">الرسالة ضمن الحد الأدنى (1 SMS) - تكلفة قياسية ممتازة.</string>
+    <string name="sms_multi_notice">تنبيه: الرسالة تجاوزت الجزء الأول وسترسل كـ (%1$d) رسائل SMS. يمكنك تقليل الكلمات لتقليل التكلفة.</string>
+
+    <!-- زر الإرسال والتحكم -->
+    <string name="delay_label">الفاصل الزمني بين كل رسالة:</string>
+    <string name="delay_seconds">%1$d ثواني (آمن)</string>
+    <string name="btn_start_sending">🚀 إرسال الرسائل للمحددين (%1$d)</string>
+    <string name="btn_stop_sending">إيقاف الإرسال</string>
+    <string name="sending_in_progress">جاري الإرسال (%1$d من %2$d)...</string>
+    <string name="sending_completed">اكتمل إرسال الرسائل بنجاح!</string>
+    <string name="sending_stopped">تم إيقاف الإرسال بواسطة المستخدم.</string>
+</resources>
