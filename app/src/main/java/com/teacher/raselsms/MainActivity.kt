@@ -225,13 +225,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermissionsAndInit() {
-        val permissions = mutableListOf(
+        val permissions = listOf(
             Manifest.permission.SEND_SMS,
             Manifest.permission.READ_PHONE_STATE
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            permissions.add(Manifest.permission.READ_PHONE_NUMBERS)
-        }
 
         val allGranted = permissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
@@ -247,14 +244,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestAppPermissions() {
-        val permissions = mutableListOf(
+        val permissions = arrayOf(
             Manifest.permission.SEND_SMS,
             Manifest.permission.READ_PHONE_STATE
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            permissions.add(Manifest.permission.READ_PHONE_NUMBERS)
-        }
-        requestPermissionsLauncher.launch(permissions.toTypedArray())
+        requestPermissionsLauncher.launch(permissions)
     }
 
     /**

@@ -51,6 +51,12 @@ android {
     buildFeatures {
         viewBinding true
     }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "RaselSMS_v1.0.apk"
+        }
+    }
 }
 
 dependencies {
