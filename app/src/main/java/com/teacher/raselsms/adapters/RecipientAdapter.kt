@@ -53,10 +53,10 @@ class RecipientAdapter(
             }
         }
 
-        // تنسيق شارة الحالة
+        // تنسيق شارة الحالة بالألوان والنصوص الواضحة
         when (item.status) {
             SendStatus.PENDING -> {
-                holder.tvStatus.text = "في الانتظار"
+                holder.tvStatus.text = "في الانتظار ⏳"
                 holder.tvStatus.setTextColor(ContextCompat.getColor(context, R.color.text_muted))
                 holder.tvStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F1F5F9"))
             }
@@ -70,8 +70,13 @@ class RecipientAdapter(
                 holder.tvStatus.setTextColor(ContextCompat.getColor(context, R.color.success))
                 holder.tvStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#DCFCE7"))
             }
+            SendStatus.STOPPED -> {
+                holder.tvStatus.text = "لم يُرسل (متوقف) ⏸"
+                holder.tvStatus.setTextColor(ContextCompat.getColor(context, R.color.warning))
+                holder.tvStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FEF3C7"))
+            }
             SendStatus.FAILED -> {
-                holder.tvStatus.text = "فشل ✕"
+                holder.tvStatus.text = "فشل الإرسال ✕"
                 holder.tvStatus.setTextColor(ContextCompat.getColor(context, R.color.danger))
                 holder.tvStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FEE2E2"))
             }
@@ -95,6 +100,19 @@ class RecipientAdapter(
         for (item in items) {
             if (item.isValid) {
                 item.isSelected = select
+            }
+        }
+        notifyDataSetChanged()
+        notifySelectionStats()
+    }
+
+    /**
+     * تحديد الطلاب الذين لم يُرسل لهم بعد فقط (للاستئناف بعد الإيقاف)
+     */
+    fun selectOnlyRemaining() {
+        for (item in items) {
+            if (item.isValid) {
+                item.isSelected = (item.status != SendStatus.SENT)
             }
         }
         notifyDataSetChanged()

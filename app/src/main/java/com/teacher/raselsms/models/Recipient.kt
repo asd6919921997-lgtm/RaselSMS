@@ -1,11 +1,12 @@
 package com.teacher.raselsms.models
 
 enum class SendStatus {
-    PENDING,    // في الانتظار
-    SENDING,    // جاري الإرسال
-    SENT,       // تم الإرسال بنجاح
-    FAILED,     // فشل الإرسال
-    INVALID     // رقم غير صالح
+    PENDING,    // لم يُرسل بعد (في الانتظار)
+    SENDING,    // جاري الإرسال الآن
+    SENT,       // تم الإرسال بنجاح ✓
+    STOPPED,    // تم التوقف قبل الإرسال ⏸
+    FAILED,     // فشل الإرسال ✕
+    INVALID     // رقم غير صالح ⚠
 }
 
 data class Recipient(

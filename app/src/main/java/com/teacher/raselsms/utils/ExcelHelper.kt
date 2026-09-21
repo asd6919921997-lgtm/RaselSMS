@@ -8,32 +8,53 @@ import org.xmlpull.v1.XmlPullParserFactory
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.io.StringReader
 import java.nio.charset.Charset
 import java.util.zip.ZipInputStream
 
 object ExcelHelper {
 
     /**
-     * استيراد البيانات سواء كان الملف إكسل (.xlsx) أو ملف نصي (.csv)
+     * القارئ الشامل لكافة أنواع وامتدادات الإكسل:
+     * 1. ملفات .xlsx الحديثة (OpenXML).
+     * 2. ملفات .csv و .txt (مفصولة بفواصل أو Tab).
+     * 3. ملفات .xls الصادرة من المنظومات المدرسية (سواء كـ HTML Table أو CSV أو نص).
      */
     fun parseFile(context: Context, uri: Uri): List<Recipient> {
         val fileName = getFileName(context, uri).lowercase()
-        return if (fileName.endsWith(".csv") || fileName.endsWith(".txt")) {
-            parseCsv(context, uri)
-        } else {
-            // المعالجة الافتراضية كملف إكسل حديث .xlsx
+        val allRows = mutableListOf<List<String>>()
+
+        // فحص هل الملف هو أرشيف Zip (ملف .xlsx حقيقي)
+        val isZipXlsx = isZipFile(context, uri)
+
+        if (isZipXlsx) {
             try {
-                parseXlsx(context, uri)
+                allRows.addAll(parseXlsx(context, uri))
             } catch (e: Exception) {
-                // محاولة القراءة كـ CSV كبديل في حال تم حفظه بصيغة أخرى
-                parseCsv(context, uri)
+                e.printStackTrace()
             }
         }
+
+        // إذا لم يكن .xlsx أو فشل، نقرأه كملف نصي / HTML Table / CSV
+        if (allRows.isEmpty()) {
+            try {
+                val textContent = readTextFromUri(context, uri)
+                if (textContent.contains("<table", ignoreCase = true) || textContent.contains("<tr", ignoreCase = true)) {
+                    // معالجة ملفات .xls التي تصدرها المنظومات كجدول HTML
+                    allRows.addAll(parseHtmlTable(textContent))
+                } else {
+                    // معالجة ملفات CSV والنصوص
+                    allRows.addAll(parseDelimitedText(textContent))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // تحويل الصفوف الأفقية بدقة متناهية لكل صف بمفرده لمنع أي تداخل أو خربطة
+        return processRowsSafely(allRows)
     }
 
-    /**
-     * استخراج اسم الملف من الـ URI
-     */
     private fun getFileName(context: Context, uri: Uri): String {
         var result = ""
         val cursor = context.contentResolver.query(uri, null, null, null, null)
@@ -48,39 +69,89 @@ object ExcelHelper {
         return if (result.isNotBlank()) result else (uri.lastPathSegment ?: "file.xlsx")
     }
 
-    /**
-     * قراءة ملفات CSV مع دعم الترميز العربي (UTF-8 و Windows-1256)
-     */
-    private fun parseCsv(context: Context, uri: Uri): List<Recipient> {
-        val rows = mutableListOf<List<String>>()
-        
-        // قراءة الملف وفحص الفواصل الشائعة (فاصلة عادية ، أو منقوطة ؛ أو Tab)
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            val reader = BufferedReader(InputStreamReader(inputStream, Charset.forName("UTF-8")))
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                line?.let { rawLine ->
-                    if (rawLine.isNotBlank()) {
-                        val delimiter = if (rawLine.contains(";")) ";" else if (rawLine.contains("\t")) "\t" else ","
-                        val tokens = rawLine.split(delimiter).map { it.trim().removeSurrounding("\"") }
-                        rows.add(tokens)
-                    }
+    private fun isZipFile(context: Context, uri: Uri): Boolean {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val buffer = ByteArray(4)
+                val read = stream.read(buffer)
+                // صيغة ملفات Zip تبدأ بـ PK (0x50, 0x4B, 0x03, 0x04)
+                read == 4 && buffer[0] == 0x50.toByte() && buffer[1] == 0x4B.toByte()
+            } ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun readTextFromUri(context: Context, uri: Uri): String {
+        return context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            val bytes = inputStream.readBytes()
+            // محاولة القراءة بترميز UTF-8 أولاً
+            var str = String(bytes, Charset.forName("UTF-8"))
+            // إذا ظهرت رموز غريبة، نحاول بترميز Windows-1256 العربي
+            if (str.contains("")) {
+                try {
+                    str = String(bytes, Charset.forName("windows-1256"))
+                } catch (e: Exception) {
+                    // البقاء على UTF-8
                 }
             }
-        }
-
-        return convertRowsToRecipients(rows)
+            str
+        } ?: ""
     }
 
     /**
-     * قراءة ملفات Excel (.xlsx) عبر معالج OpenXML الداخلي في أندرويد
-     * خفيف جداً، فائق السرعة، ولا يتطلب أي مكتبات خارجية ضخمة.
+     * قراءة جداول HTML المدمجة في ملفات .xls الصادرة من المنظومات المدرسية
      */
-    private fun parseXlsx(context: Context, uri: Uri): List<Recipient> {
+    private fun parseHtmlTable(html: String): List<List<String>> {
+        val rows = mutableListOf<List<String>>()
+        val rowRegex = Regex("<tr[^>]*>(.*?)</tr>", RegexOption.DOT_MATCHES_ALL or RegexOption.IGNORE_CASE)
+        val cellRegex = Regex("<t[dh][^>]*>(.*?)</t[dh]>", RegexOption.DOT_MATCHES_ALL or RegexOption.IGNORE_CASE)
+
+        val rowMatches = rowRegex.findAll(html)
+        for (rowMatch in rowMatches) {
+            val rowContent = rowMatch.groupValues[1]
+            val cellMatches = cellRegex.findAll(rowContent)
+            val rowCells = mutableListOf<String>()
+            for (cellMatch in cellMatches) {
+                // تنظيف نصوص الخلايا من وسوم HTML ورموز الفراغات
+                val cellText = cellMatch.groupValues[1]
+                    .replace(Regex("<[^>]*>"), "")
+                    .replace("&nbsp;", " ")
+                    .replace("&amp;", "&")
+                    .trim()
+                rowCells.add(cellText)
+            }
+            if (rowCells.isNotEmpty()) {
+                rows.add(rowCells)
+            }
+        }
+        return rows
+    }
+
+    private fun parseDelimitedText(text: String): List<List<String>> {
+        val rows = mutableListOf<List<String>>()
+        val reader = BufferedReader(StringReader(text))
+        var line: String?
+        while (reader.readLine().also { line = it } != null) {
+            line?.let { rawLine ->
+                if (rawLine.isNotBlank()) {
+                    val delimiter = if (rawLine.contains("\t")) "\t" else if (rawLine.contains(";")) ";" else ","
+                    val tokens = rawLine.split(delimiter).map { it.trim().removeSurrounding("\"") }
+                    rows.add(tokens)
+                }
+            }
+        }
+        return rows
+    }
+
+    /**
+     * قراءة ملفات .xlsx الأصلية
+     */
+    private fun parseXlsx(context: Context, uri: Uri): List<List<String>> {
         val sharedStrings = mutableListOf<String>()
         val sheetRows = mutableListOf<List<String>>()
 
-        // الخطوة 1: استخراج النصوص المشتركة sharedStrings.xml
+        // قراءة النصوص المشتركة
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
             val zip = ZipInputStream(inputStream)
             var entry = zip.nextEntry
@@ -93,7 +164,7 @@ object ExcelHelper {
             }
         }
 
-        // الخطوة 2: قراءة بيانات الورقة الأولى sheet1.xml
+        // قراءة أول ورقة عمل
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
             val zip = ZipInputStream(inputStream)
             var entry = zip.nextEntry
@@ -106,7 +177,7 @@ object ExcelHelper {
             }
         }
 
-        return convertRowsToRecipients(sheetRows)
+        return sheetRows
     }
 
     private fun readSharedStrings(inputStream: InputStream, list: MutableList<String>) {
@@ -127,9 +198,7 @@ object ExcelHelper {
                     }
                 }
                 XmlPullParser.TEXT -> {
-                    if (inTextTag) {
-                        currentText.append(parser.text)
-                    }
+                    if (inTextTag) currentText.append(parser.text)
                 }
                 XmlPullParser.END_TAG -> {
                     if (parser.name.equals("t", ignoreCase = true)) {
@@ -173,9 +242,7 @@ object ExcelHelper {
                     }
                 }
                 XmlPullParser.TEXT -> {
-                    if (inValueTag) {
-                        cellValue.append(parser.text)
-                    }
+                    if (inValueTag) cellValue.append(parser.text)
                 }
                 XmlPullParser.END_TAG -> {
                     val tagName = parser.name
@@ -216,93 +283,99 @@ object ExcelHelper {
     }
 
     /**
-     * الكشف الذكي عن عمود الاسم ورقم الجوال وتحويل الأسطر إلى قائمة Recipient
+     * المعالجة الأفقية الدقيقة (صف بصف):
+     * يفحص كل صف أفقي بمفرده تماماً.
+     * يستخرج الاسم ورقم الهاتف من نفس الصف بدون أي احتمالية للتداخل أو إزاحة الأرقام.
      */
-    private fun convertRowsToRecipients(rows: List<List<String>>): List<Recipient> {
+    private fun processRowsSafely(rows: List<List<String>>): List<Recipient> {
         if (rows.isEmpty()) return emptyList()
-
-        var nameCol = -1
-        var phoneCol = -1
-        var startRow = 0
-
-        // فحص صف العناوين في أول 3 أسطر
-        for (r in 0 until minOf(3, rows.size)) {
-            val row = rows[r]
-            for (c in row.indices) {
-                val header = row[c].trim().lowercase()
-                if (nameCol == -1 && (header.contains("اسم") || header.contains("طالب") || header.contains("name") || header.contains("student"))) {
-                    nameCol = c
-                }
-                if (phoneCol == -1 && (header.contains("جوال") || header.contains("هاتف") || header.contains("موبايل") ||
-                            header.contains("phone") || header.contains("mobile") || header.contains("ولي") || header.contains("رقم"))) {
-                    phoneCol = c
-                }
-            }
-            if (nameCol != -1 && phoneCol != -1) {
-                startRow = r + 1
-                break
-            }
-        }
-
-        // إذا لم نجد العناوين بوضوح، نفترض أن العمود الأول هو الاسم والعمود الثاني هو الهاتف
-        if (nameCol == -1 || phoneCol == -1) {
-            nameCol = 0
-            phoneCol = 1
-            // إذا كان السطر الأول نصياً نعتبره عنواناً
-            if (rows.isNotEmpty() && rows[0].size > 1 && !looksLikePhone(rows[0][1])) {
-                startRow = 1
-            }
-        }
 
         val recipients = mutableListOf<Recipient>()
         var idCounter = 1
 
-        for (i in startRow until rows.size) {
-            val row = rows[i]
-            val name = if (nameCol in row.indices) row[nameCol].trim() else "طالب $idCounter"
-            val rawPhone = if (phoneCol in row.indices) row[phoneCol].trim() else ""
+        for (rowIndex in rows.indices) {
+            val row = rows[rowIndex]
+            if (row.isEmpty()) continue
 
-            if (name.isBlank() && rawPhone.isBlank()) continue
+            // البحث داخل نفس الصف الأفقي عن الخلية التي تمثل الهاتف والخلية التي تمثل الاسم
+            var detectedPhone = ""
+            var detectedName = ""
 
-            val cleanPhone = normalizePhoneNumber(rawPhone)
-            val isValid = isValidPhone(cleanPhone)
+            for (cell in row) {
+                val cleanVal = cell.trim()
+                if (cleanVal.isBlank()) continue
 
-            recipients.add(
-                Recipient(
-                    id = idCounter++,
-                    name = if (name.isNotBlank()) name else "طالب بدون اسم",
-                    rawPhone = rawPhone,
-                    cleanPhone = cleanPhone,
-                    isValid = isValid
+                // فحص هل الخلية تحمل صفات رقم هاتف
+                if (detectedPhone.isBlank() && isPhoneCandidate(cleanVal)) {
+                    detectedPhone = cleanVal
+                } else if (detectedName.isBlank() && hasArabicOrLetters(cleanVal) && !isHeaderWord(cleanVal)) {
+                    detectedName = cleanVal
+                }
+            }
+
+            // إذا كان الصف عبارة عن عناوين (مثل "اسم الطالب"، "رقم الهاتف")، نتجاهله
+            if (isHeaderRow(row)) continue
+
+            // إذا وجدنا رقماً أو اسماً في هذا الصف
+            if (detectedPhone.isNotBlank() || detectedName.isNotBlank()) {
+                val finalName = if (detectedName.isNotBlank()) detectedName else "طالب $idCounter"
+                val cleanPhone = normalizePhoneNumber(detectedPhone)
+                val isValid = isValidPhone(cleanPhone)
+
+                recipients.add(
+                    Recipient(
+                        id = idCounter++,
+                        name = finalName,
+                        rawPhone = detectedPhone,
+                        cleanPhone = cleanPhone,
+                        isValid = isValid
+                    )
                 )
-            )
+            }
         }
 
         return recipients
     }
 
     /**
-     * تنظيف الأرقام، تحويل الأرقام العربية إلى إنجليزية، وإزالة الرموز
+     * تنظيف وضبط أرقام الهواتف بأعلى ذكاء:
+     * - تحويل الأرقام العربية ٠-٩ إلى 0-9.
+     * - تحويل +970 و +972 و 00970 و 00972 إلى أرقام محلية قياسية (059xxxxxxx أو 056xxxxxxx).
+     * - إكمال الصفر إذا كان مفقوداً في البداية (مثل 592898375 تصبح 0592898375).
+     * - تنظيف علامات الاتجاه والمسافات والرموز المخفية.
      */
     fun normalizePhoneNumber(phone: String): String {
-        var p = phone
+        var p = phone.trim()
+
+        // إزالة الحروف المخفية واتجاه النص في يونيكود
+        p = p.replace("\u200E", "").replace("\u200F", "").replace("\uFEFF", "")
+
         // تحويل الأرقام العربية الهندية ٠-٩ إلى 0-9
         val arabicDigits = charArrayOf('٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩')
         for (i in arabicDigits.indices) {
             p = p.replace(arabicDigits[i], ('0' + i))
         }
 
-        // إبقاء الأرقام وعلامة + فقط
-        val digits = p.filter { it.isDigit() || it == '+' }
-        
-        // إزالة الأصفار الدولية 00 في البداية واستبدالها بـ +
-        var cleaned = digits
+        // الإبقاء على الأرقام وعلامة + فقط
+        var cleaned = p.filter { it.isDigit() || it == '+' }
+
+        // تحويل 00 الدولية إلى +
         if (cleaned.startsWith("00")) {
             cleaned = "+" + cleaned.substring(2)
         }
-        
-        // الأرقام في السعودية تبدأ غالباً بـ 05
-        // إذا كان الرقم 9 أرقام بدون الصفر (5xxxxxxxx)، نضيف الصفر ليصبح 05xxxxxxxx
+
+        // تحويل المقدمات الدولية (+970 و +972) إلى الصفر المحلي القياسي
+        if (cleaned.startsWith("+970")) {
+            cleaned = "0" + cleaned.substring(4)
+        } else if (cleaned.startsWith("+972")) {
+            cleaned = "0" + cleaned.substring(4)
+        } else if (cleaned.startsWith("970") && cleaned.length >= 11) {
+            cleaned = "0" + cleaned.substring(3)
+        } else if (cleaned.startsWith("972") && cleaned.length >= 11) {
+            cleaned = "0" + cleaned.substring(3)
+        }
+
+        // إذا كان الرقم 9 أرقام ويبدأ بـ 5 (مثل 592898375 أو 56xxxxxxx)، يُكمل الصفر تلقائياً ليصبح 0592898375!
         if (cleaned.startsWith("5") && cleaned.length == 9) {
             cleaned = "0$cleaned"
         }
@@ -310,17 +383,47 @@ object ExcelHelper {
         return cleaned
     }
 
-    /**
-     * فحص هل الرقم صالح للإرسال
-     */
-    fun isValidPhone(phone: String): Boolean {
-        val pureDigits = phone.filter { it.isDigit() }
-        // رقم الهاتف عادة لا يقل عن 9 أرقام ولا يزيد عن 15 رقماً
-        return pureDigits.length in 9..15
+    private fun isPhoneCandidate(valStr: String): Boolean {
+        // تحويل الأرقام العربية أولاً للفحص
+        var s = valStr.trim()
+        val arabicDigits = charArrayOf('٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩')
+        for (i in arabicDigits.indices) {
+            s = s.replace(arabicDigits[i], ('0' + i))
+        }
+
+        val digits = s.filter { it.isDigit() }
+        // رقم هاتف محتمل: يبدأ بـ 05 أو 5 أو 970 أو 972 وطوله مناسب
+        if (digits.length in 8..15) {
+            if (digits.startsWith("05") || digits.startsWith("5") ||
+                digits.startsWith("970") || digits.startsWith("972") ||
+                s.startsWith("+970") || s.startsWith("+972")) {
+                return true
+            }
+            return digits.length >= 9
+        }
+        return false
     }
 
-    private fun looksLikePhone(value: String): Boolean {
-        val digits = value.filter { it.isDigit() }
-        return digits.length >= 7
+    private fun hasArabicOrLetters(valStr: String): Boolean {
+        return valStr.any { it.isLetter() }
+    }
+
+    private fun isHeaderWord(valStr: String): Boolean {
+        val s = valStr.lowercase()
+        return s.contains("اسم") || s.contains("طالب") || s.contains("هاتف") ||
+               s.contains("جوال") || s.contains("ولي") || s.contains("name") || s.contains("phone")
+    }
+
+    private fun isHeaderRow(row: List<String>): Boolean {
+        var headerScore = 0
+        for (cell in row) {
+            if (isHeaderWord(cell)) headerScore++
+        }
+        return headerScore >= 1 && row.none { isPhoneCandidate(it) && it.filter { c -> c.isDigit() }.length >= 9 }
+    }
+
+    fun isValidPhone(phone: String): Boolean {
+        val pureDigits = phone.filter { it.isDigit() }
+        return pureDigits.length in 9..15
     }
 }

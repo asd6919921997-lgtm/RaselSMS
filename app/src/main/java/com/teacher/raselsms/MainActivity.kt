@@ -205,6 +205,23 @@ class MainActivity : AppCompatActivity() {
             binding.btnStopSending.isEnabled = false
             binding.btnStopSending.text = "جاري الإيقاف..."
         }
+
+        // التواصل مع المطور إبراهيم النجار
+        binding.layoutDeveloperContact.setOnClickListener {
+            try {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    Uri.parse("https://wa.me/970592898375")
+                )
+                startActivity(intent)
+            } catch (e: Exception) {
+                val dialIntent = android.content.Intent(
+                    android.content.Intent.ACTION_DIAL,
+                    Uri.parse("tel:+970592898375")
+                )
+                startActivity(dialIntent)
+            }
+        }
     }
 
     private fun checkPermissionsAndInit() {
@@ -365,18 +382,33 @@ class MainActivity : AppCompatActivity() {
                     binding.tvProgressStatus.text = "جاري الإرسال ($current من $total)... $percentage%"
                     adapter.notifyDataSetChanged()
                 },
-                onCompleted = { sentCount, failedCount ->
+                onCompleted = { sentCount, failedCount, stoppedCount, isStoppedByUser ->
                     isSending = false
                     binding.btnSendSms.isEnabled = true
                     binding.btnStopSending.visibility = View.GONE
-                    binding.tvProgressStatus.text = "اكتمل الإرسال! تم بنجاح: $sentCount | فشل: $failedCount"
                     adapter.notifyDataSetChanged()
 
-                    AlertDialog.Builder(this@MainActivity)
-                        .setTitle("تقرير الإرسال")
-                        .setMessage("اكتملت عملية الإرسال:\n\n✓ تم الإرسال بنجاح: $sentCount رسالة\n✕ فشل الإرسال: $failedCount رسالة")
-                        .setPositiveButton("حسناً", null)
-                        .show()
+                    if (isStoppedByUser) {
+                        binding.tvProgressStatus.text = "تم التوقف: أرسل لـ $sentCount | لم يُرسل لـ $stoppedCount"
+                        
+                        AlertDialog.Builder(this@MainActivity)
+                            .setTitle("تم إيقاف الإرسال")
+                            .setMessage("تقرير حالة الطلاب بعد الإيقاف:\n\n✓ تم الإرسال بنجاح لـ: $sentCount طالب\n⏸ لم يُرسل بعد لـ: $stoppedCount طالب\n✕ فشل الإرسال لـ: $failedCount طالب\n\n(يمكنك الضغط على 'استئناف إرسال المتبقين' لإكمال من لم يُرسل له فقط)")
+                            .setPositiveButton("استئناف إرسال المتبقين") { _, _ ->
+                                adapter.selectOnlyRemaining()
+                                startSendingProcess()
+                            }
+                            .setNegativeButton("إغلاق", null)
+                            .show()
+                    } else {
+                        binding.tvProgressStatus.text = "اكتمل الإرسال! تم بنجاح: $sentCount | فشل: $failedCount"
+
+                        AlertDialog.Builder(this@MainActivity)
+                            .setTitle("تقرير الإرسال")
+                            .setMessage("اكتملت العملية لجميع الطلاب:\n\n✓ تم الإرسال بنجاح: $sentCount رسالة\n✕ فشل الإرسال: $failedCount رسالة")
+                            .setPositiveButton("حسناً", null)
+                            .show()
+                    }
                 }
             )
         }

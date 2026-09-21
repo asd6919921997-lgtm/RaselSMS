@@ -1,16 +1,10 @@
 package com.teacher.raselsms.utils
 
-import android.app.Activity
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
 import android.telephony.SmsManager
 import com.teacher.raselsms.models.Recipient
 import com.teacher.raselsms.models.SendStatus
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -25,7 +19,7 @@ class SmsDispatcher(private val context: Context) {
     }
 
     /**
-     * إرسال الرسائل للمستلمين المحددين مع فاصل زمني آمن وتحديث فوري للحالة
+     * إرسال الرسائل للمستلمين المحددين مع دعم الإيقاف الفوري وتمييز من أرسل ومن لم يرسل له
      */
     suspend fun dispatchBulk(
         recipients: List<Recipient>,
@@ -33,7 +27,7 @@ class SmsDispatcher(private val context: Context) {
         subscriptionId: Int,
         delaySeconds: Int,
         onProgress: (current: Int, total: Int, recipient: Recipient) -> Unit,
-        onCompleted: (sentCount: Int, failedCount: Int) -> Unit
+        onCompleted: (sentCount: Int, failedCount: Int, stoppedCount: Int, isStoppedByUser: Boolean) -> Unit
     ) = withContext(Dispatchers.IO) {
         isCancelled.set(false)
         val selectedRecipients = recipients.filter { it.isSelected && it.isValid }
@@ -41,26 +35,37 @@ class SmsDispatcher(private val context: Context) {
 
         if (total == 0) {
             withContext(Dispatchers.Main) {
-                onCompleted(0, 0)
+                onCompleted(0, 0, 0, false)
             }
             return@withContext
         }
 
         var sentSuccess = 0
         var sentFailed = 0
+        var stoppedCount = 0
 
-        // الحصول على SmsManager للشريحة المحددة
         val smsManager = getSmsManager(context, subscriptionId)
 
         for ((index, recipient) in selectedRecipients.withIndex()) {
-            if (isCancelled.get()) break
+            // إذا طلب المستخدم إيقاف الإرسال
+            if (isCancelled.get()) {
+                // وضع علامة "تم التوقف قبل الإرسال" لكافة المستلمين المتبقين في القائمة
+                for (remainingIdx in index until selectedRecipients.size) {
+                    val remainingRecipient = selectedRecipients[remainingIdx]
+                    if (remainingRecipient.status != SendStatus.SENT) {
+                        remainingRecipient.status = SendStatus.STOPPED
+                        stoppedCount++
+                    }
+                }
+                break
+            }
 
             recipient.status = SendStatus.SENDING
             withContext(Dispatchers.Main) {
                 onProgress(index + 1, total, recipient)
             }
 
-            // تخصيص نص الرسالة في حال وجود متغير {الاسم} أو {اسم الطالب}
+            // تخصيص اسم الطالب في الرسالة
             val customizedMessage = rawMessage
                 .replace("{الاسم}", recipient.name)
                 .replace("{اسم الطالب}", recipient.name)
@@ -80,20 +85,18 @@ class SmsDispatcher(private val context: Context) {
                 onProgress(index + 1, total, recipient)
             }
 
-            // الفاصل الزمني الآمن بين الرسائل لحماية الشريحة
+            // الفاصل الزمني الآمن بين كل رسالة
             if (index < total - 1 && !isCancelled.get()) {
                 delay(delaySeconds * 1000L)
             }
         }
 
+        val wasStopped = isCancelled.get()
         withContext(Dispatchers.Main) {
-            onCompleted(sentSuccess, sentFailed)
+            onCompleted(sentSuccess, sentFailed, stoppedCount, wasStopped)
         }
     }
 
-    /**
-     * تهيئة SmsManager المناسب للشريحة المحددة
-     */
     private fun getSmsManager(context: Context, subscriptionId: Int): SmsManager {
         return try {
             if (subscriptionId != -1) {
@@ -120,9 +123,6 @@ class SmsDispatcher(private val context: Context) {
         }
     }
 
-    /**
-     * إرسال رسالة نصية فردية والتأكد من دعم الرسائل المقسمة إذا زادت عن 70 حرفاً
-     */
     private fun sendSingleSms(smsManager: SmsManager, phone: String, message: String): Boolean {
         return try {
             val parts = smsManager.divideMessage(message)
