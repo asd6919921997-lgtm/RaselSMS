@@ -200,36 +200,7 @@ class MainActivity : AppCompatActivity() {
         requestPermissionsLauncher.launch(permissions)
     }
 
-    private fun setupSimCards() {
-        activeSims = SimHelper.getActiveSimCards(this)
-        val simNames = activeSims.map { "${it.displayName} (${it.carrierName})" }
 
-        val simAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, simNames)
-        binding.spnSimCard.adapter = simAdapter
-
-        binding.spnSimCard.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (position in activeSims.indices) {
-                    selectedSimId = activeSims[position].subscriptionId
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        // الفاصل الزمني
-        val delays = listOf("1 ثانية", "2 ثانية", "3 ثوانٍ (موصى به)", "5 ثوانٍ", "10 ثوانٍ")
-        val delayValues = listOf(1, 2, 3, 5, 10)
-        val delayAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, delays)
-        binding.spnDelay.adapter = delayAdapter
-        binding.spnDelay.setSelection(2)
-
-        binding.spnDelay.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                selectedDelaySeconds = delayValues[position]
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-    }
 
     // ==========================================
     // 1. نظام الحضور والغياب اليومي (Attendance)
@@ -460,18 +431,18 @@ class MainActivity : AppCompatActivity() {
         dialogBinding.tvAbsentSummaryBadge.text = "إجمالي الغائبين: ${recipients.size} طالب"
 
         // عداد الحروف الذكي
-        fun updateCharCount() {
+        fun updateModalCharCount() {
             val text = dialogBinding.etAbsentCustomMessage.text.toString()
             val charCount = text.length
             val parts = if (charCount <= 70) 1 else ((charCount - 70) / 67) + 2
             dialogBinding.tvAbsentCharCount.text = "الحروف: $charCount | الأجزاء: $parts رسالة (70 حرف)"
         }
-        updateCharCount()
+        updateModalCharCount()
 
         dialogBinding.etAbsentCustomMessage.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                updateCharCount()
+                updateModalCharCount()
             }
             override fun afterTextChanged(s: Editable?) {}
         })
