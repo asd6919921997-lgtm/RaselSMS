@@ -14,6 +14,7 @@ data class Student(
     val id: Long = 0,
     val classId: Long,
     val name: String,
+    val idNumber: String = "",
     val phone: String,
     val isActive: Boolean = true
 )

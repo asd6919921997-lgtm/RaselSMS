@@ -277,8 +277,85 @@ class SchoolDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     @Synchronized
     fun deleteStudent(studentId: Long): Boolean {
+        return moveToTrash(studentId)
+    }
+
+    @Synchronized
+    fun moveToTrash(studentId: Long): Boolean {
+        val db = writableDatabase
+        val cv = ContentValues().apply {
+            put(COL_STUDENT_IS_ACTIVE, 0)
+        }
+        return db.update(TABLE_STUDENTS, cv, "$COL_STUDENT_ID = ?", arrayOf(studentId.toString())) > 0
+    }
+
+    @Synchronized
+    fun restoreFromTrash(studentId: Long): Boolean {
+        val db = writableDatabase
+        val cv = ContentValues().apply {
+            put(COL_STUDENT_IS_ACTIVE, 1)
+        }
+        return db.update(TABLE_STUDENTS, cv, "$COL_STUDENT_ID = ?", arrayOf(studentId.toString())) > 0
+    }
+
+    @Synchronized
+    fun getTrashStudents(): List<Pair<Student, SchoolClass>> {
+        val list = mutableListOf<Pair<Student, SchoolClass>>()
+        val db = readableDatabase
+        val sql = """
+            SELECT s.$COL_STUDENT_ID, s.$COL_STUDENT_CLASS_ID, s.$COL_STUDENT_NAME, s.$COL_STUDENT_PHONE,
+                   c.$COL_CLASS_STAGE, c.$COL_CLASS_GRADE, c.$COL_CLASS_SECTION
+            FROM $TABLE_STUDENTS s
+            JOIN $TABLE_CLASSES c ON s.$COL_STUDENT_CLASS_ID = c.$COL_CLASS_ID
+            WHERE s.$COL_STUDENT_IS_ACTIVE = 0
+            ORDER BY s.$COL_STUDENT_NAME ASC
+        """.trimIndent()
+        val cursor = db.rawQuery(sql, null)
+        while (cursor.moveToNext()) {
+            val student = Student(
+                id = cursor.getLong(0),
+                classId = cursor.getLong(1),
+                name = cursor.getString(2),
+                phone = cursor.getString(3),
+                isActive = false
+            )
+            val schoolClass = SchoolClass(
+                id = cursor.getLong(1),
+                stage = cursor.getString(4) ?: "المرحلة الأساسية",
+                grade = cursor.getString(5),
+                section = cursor.getString(6)
+            )
+            list.add(Pair(student, schoolClass))
+        }
+        cursor.close()
+        return list
+    }
+
+    @Synchronized
+    fun deleteStudentPermanently(studentId: Long): Boolean {
         val db = writableDatabase
         return db.delete(TABLE_STUDENTS, "$COL_STUDENT_ID = ?", arrayOf(studentId.toString())) > 0
+    }
+
+    @Synchronized
+    fun emptyTrash(): Int {
+        val db = writableDatabase
+        return db.delete(TABLE_STUDENTS, "$COL_STUDENT_IS_ACTIVE = 0", null)
+    }
+
+    @Synchronized
+    fun clearAllSchoolData() {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete(TABLE_ATTENDANCE, null, null)
+            db.delete(TABLE_SMS_LOGS, null, null)
+            db.delete(TABLE_STUDENTS, null, null)
+            db.delete(TABLE_CLASSES, null, null)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 
     @Synchronized

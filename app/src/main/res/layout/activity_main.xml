@@ -213,7 +213,7 @@
                     android:background="@drawable/rounded_edittext" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnAddClass"
+                    android:id="@+id/btnOpenPasteStudents"
                     android:layout_width="38dp"
                     android:layout_height="44dp"
                     android:layout_marginStart="3dp"
