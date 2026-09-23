@@ -999,13 +999,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
                         <!-- 4. تصفير البيانات والبدء النظيف -->
                         <div id="cardResetData" class="card" style="margin-bottom: 8px; background: #FFEBEE; border: 1px solid #FFCDD2;">
-                            <div id="cardResetTitle" style="font-size: 11.5px; font-weight: bold; color: #C62828; margin-bottom: 4px;">🧹 تصفير البيانات التجريبية:</div>
+                            <div id="cardResetTitle" style="font-size: 11.5px; font-weight: bold; color: #C62828; margin-bottom: 4px;">🧹 تصفير البيانات التجريبية ومسح الأسماء الوهمية:</div>
                             <p id="cardResetDesc" style="font-size: 10.5px; color: #B71C1C; margin-bottom: 8px; line-height: 1.4;">
-                                مسح كافة البيانات التجريبية والأسماء الوهمية بعد التجربة للبدء فوراً بسجل مدرسي فارغ ونظيف بالكامل.
+                                مسح كافة البيانات والصفوف التجريبية للبدء فوراً بسجل مدرسي نظيف وخاص بمدرستك الحقيقية. (محفوظ دائماً في متصفحك).
                             </p>
-                            <button id="cardResetBtn" class="btn-danger" style="width: 100%; font-size: 11px; padding: 7px;" onclick="resetAllDummyDataPrompt()">
-                                ⚠️ تصفير وحذف كافة البيانات التجريبية
-                            </button>
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <button id="cardResetBtn" class="btn-danger" style="width: 100%; font-size: 11px; padding: 7px;" onclick="resetAllDummyDataPrompt()">
+                                    ⚠️ مسح وتصفير كافة البيانات التجريبية نهائياً
+                                </button>
+                                <button class="btn-outline" style="width: 100%; font-size: 10.5px; padding: 5px; color: #0284C7; border-color: #38BDF8; background: #F0F9FF;" onclick="restoreDefaultDemoDataPrompt()">
+                                    🔄 استعادة الصفوف والبيانات التجريبية الافتراضية
+                                </button>
+                            </div>
                         </div>
 
                         <!-- 5. بطاقة المطور الثابتة المطلوبة -->
@@ -1607,43 +1612,96 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         };
 
         // قاعدة بيانات الطلاب الموسعة مع الشعب
-        // قاعدة بيانات الطلاب الموسعة المصنفة هرمياً (مرحلة -> صف -> شعبة)
-        let allStudents = [
-            // 1. في الأعلى دائماً: المرحلة الأساسية الدنيا (1-4) - رابع 1
+        // البيانات التجريبية الافتراضية الأولية (للتجربة والعرض فقط)
+        const DEFAULT_DEMO_STUDENTS = [
             { id: 1, idNumber: "401234561", stage: "المرحلة الأساسية الدنيا (1-4)", grade: "الصف الرابع", section: "1", classKey: "4_1", className: "الصف الرابع - شعبة 1", name: "ياسين كمال الفرا", phone: "0598822446", isAbsent: false, presentDays: 1, absentDays: 0 },
-
-            // 2. في الوسط دائماً: المرحلة الأساسية العليا أو الإعدادية (5-9) - سابع 1، سابع 2، ثامن 1
             { id: 2, idNumber: "401234562", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "1", classKey: "7_1", className: "الصف السابع - شعبة 1", name: "أحمد خليل النجار", phone: "0592898375", isAbsent: false, presentDays: 1, absentDays: 0 },
             { id: 3, idNumber: "401234563", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "1", classKey: "7_1", className: "الصف السابع - شعبة 1", name: "محمد علي حسن", phone: "0569876543", isAbsent: true, presentDays: 0, absentDays: 1 },
             { id: 4, idNumber: "401234564", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "1", classKey: "7_1", className: "الصف السابع - شعبة 1", name: "يوسف محمود القدوة", phone: "0591234567", isAbsent: false, presentDays: 1, absentDays: 0 },
             { id: 5, idNumber: "401234565", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "1", classKey: "7_1", className: "الصف السابع - شعبة 1", name: "خالد سعيد بركة", phone: "0598765432", isAbsent: false, presentDays: 1, absentDays: 0 },
             { id: 6, idNumber: "401234566", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "1", classKey: "7_1", className: "الصف السابع - شعبة 1", name: "عمر كمال الشوا", phone: "0561122334", isAbsent: true, presentDays: 0, absentDays: 1 },
-
-            // سابع 2
             { id: 7, idNumber: "401234567", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "2", classKey: "7_2", className: "الصف السابع - شعبة 2", name: "محمود إبراهيم الأغا", phone: "0599112233", isAbsent: false, presentDays: 1, absentDays: 0 },
             { id: 8, idNumber: "401234568", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "2", classKey: "7_2", className: "الصف السابع - شعبة 2", name: "بلال عبد الله صيام", phone: "0568877665", isAbsent: false, presentDays: 1, absentDays: 0 },
             { id: 9, idNumber: "401234569", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "2", classKey: "7_2", className: "الصف السابع - شعبة 2", name: "سامر توفيق عواد", phone: "0594455667", isAbsent: false, presentDays: 1, absentDays: 0 },
-
-            // ثامن 1
             { id: 10, idNumber: "401234570", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف الثامن", section: "1", classKey: "8_1", className: "الصف الثامن - شعبة 1", name: "إياد حسن المدهون", phone: "0593322114", isAbsent: true, presentDays: 0, absentDays: 1 },
             { id: 11, idNumber: "401234571", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف الثامن", section: "1", classKey: "8_1", className: "الصف الثامن - شعبة 1", name: "طارق سليم فياض", phone: "0567788990", isAbsent: false, presentDays: 1, absentDays: 0 },
-
-            // 3. في الأسفل دائماً: المرحلة الثانوية (10-12) - عاشر 1
             { id: 12, idNumber: "401234572", stage: "المرحلة الثانوية (10-12)", grade: "الصف العاشر", section: "1", classKey: "10_1", className: "الصف العاشر - شعبة 1", name: "محمود رامي قديح", phone: "0591144778", isAbsent: false, presentDays: 1, absentDays: 0 },
             { id: 13, idNumber: "401234573", stage: "المرحلة الثانوية (10-12)", grade: "الصف العاشر", section: "1", classKey: "10_1", className: "الصف العاشر - شعبة 1", name: "كرم زياد حسنين", phone: "0569933112", isAbsent: true, presentDays: 0, absentDays: 1 }
         ];
 
-        // سلة المهملات المدرسية
-        let trashBinList = [];
-
-        // سجل الشعب والصفوف المدرسية الفعلي (ديناميكي بالكامل بناءً على بيانات المعلم)
-        let allSchoolClasses = [
+        const DEFAULT_DEMO_CLASSES = [
             { key: "4_1", stage: "المرحلة الأساسية الدنيا (1-4)", grade: "الصف الرابع", section: "1", name: "الصف الرابع - شعبة 1" },
             { key: "7_1", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "1", name: "الصف السابع - شعبة 1" },
             { key: "7_2", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف السابع", section: "2", name: "الصف السابع - شعبة 2" },
             { key: "8_1", stage: "المرحلة الأساسية العليا (5-9)", grade: "الصف الثامن", section: "1", name: "الصف الثامن - شعبة 1" },
             { key: "10_1", stage: "المرحلة الثانوية (10-12)", grade: "الصف العاشر", section: "1", name: "الصف العاشر - شعبة 1" }
         ];
+
+        // مصفوفات البيانات الحية المحفوظة محلياً في ذاكرة المتصفح الدائمة (localStorage)
+        let allStudents = [];
+        let trashBinList = [];
+        let allSchoolClasses = [];
+
+        function loadSchoolDataFromStorage() {
+            try {
+                const savedStudents = localStorage.getItem('rasel_school_students');
+                const savedClasses = localStorage.getItem('rasel_school_classes');
+                const savedTrash = localStorage.getItem('rasel_school_trash');
+
+                if (savedStudents !== null) {
+                    allStudents = JSON.parse(savedStudents);
+                } else {
+                    allStudents = JSON.parse(JSON.stringify(DEFAULT_DEMO_STUDENTS));
+                }
+
+                if (savedClasses !== null) {
+                    allSchoolClasses = JSON.parse(savedClasses);
+                } else {
+                    allSchoolClasses = JSON.parse(JSON.stringify(DEFAULT_DEMO_CLASSES));
+                }
+
+                if (savedTrash !== null) {
+                    trashBinList = JSON.parse(savedTrash);
+                } else {
+                    trashBinList = [];
+                }
+            } catch (e) {
+                console.error("Error loading data from localStorage:", e);
+                allStudents = JSON.parse(JSON.stringify(DEFAULT_DEMO_STUDENTS));
+                allSchoolClasses = JSON.parse(JSON.stringify(DEFAULT_DEMO_CLASSES));
+                trashBinList = [];
+            }
+        }
+
+        function saveSchoolDataToStorage() {
+            try {
+                localStorage.setItem('rasel_school_students', JSON.stringify(allStudents));
+                localStorage.setItem('rasel_school_classes', JSON.stringify(allSchoolClasses));
+                localStorage.setItem('rasel_school_trash', JSON.stringify(trashBinList));
+            } catch (e) {
+                console.error("Error saving data to localStorage:", e);
+            }
+        }
+
+        function restoreDefaultDemoDataPrompt() {
+            if (confirm("🔄 هل ترغب في استعادة البيانات والصفوف التجريبية الافتراضية؟\n\n(مفيدة لمعاينة الميزات والشاشات والتقارير)")) {
+                allStudents = JSON.parse(JSON.stringify(DEFAULT_DEMO_STUDENTS));
+                allSchoolClasses = JSON.parse(JSON.stringify(DEFAULT_DEMO_CLASSES));
+                trashBinList = [];
+                currentFilterClass = "ALL";
+                saveSchoolDataToStorage();
+                syncSchoolClassesFromStudents();
+                renderRoster();
+                renderHierarchicalStats();
+                if (typeof renderUnifiedStudentsList === 'function') renderUnifiedStudentsList();
+                if (typeof renderUnifiedClassesList === 'function') renderUnifiedClassesList();
+                updateTrashBadge();
+                alert("✓ تمت استعادة البيانات والصفوف التجريبية بنجاح!");
+            }
+        }
+
+        // تحميل البيانات الأولية المحفوظة
+        loadSchoolDataFromStorage();
 
         let currentFilterClass = "ALL"; // الافتراضي: كل الصفوف
 
@@ -1809,6 +1867,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
                     st.absentDays = Math.max(0, (typeof st.absentDays === 'number' ? st.absentDays : 1) - 1);
                     st.presentDays = (typeof st.presentDays === 'number' ? st.presentDays : 0) + 1;
                 }
+                saveSchoolDataToStorage();
                 renderRoster();
             }
         }
@@ -1834,6 +1893,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
                     }
                 }
             });
+            saveSchoolDataToStorage();
             renderRoster();
         }
 
@@ -2442,6 +2502,15 @@ function onExcelFileSelected(input) {
                 return;
             }
 
+            // فحص هل القائمة الحالية تحتوي على الطلاب والصفوف التجريبية الافتراضية
+            const hasDemoStudents = allStudents.some(s => s.name === "ياسين كمال الفرا" || s.name === "أحمد خليل النجار");
+            if (hasDemoStudents) {
+                if (confirm("📢 هل ترغب في مسح البيانات والصفوف التجريبية السابقة للبدء ببيانات ملف مدرستك الحقيقي فقط؟\n\n• اضغط (موافق) لمسح الأسماء والشعب الوهمية واعتماد ملف مدرستك فقط.\n• اضغط (إلغاء الأمر) لدمج ملف الإكسل مع البيانات الحالية.")) {
+                    allStudents = [];
+                    allSchoolClasses = [];
+                }
+            }
+
             const classSelect = document.getElementById('classSelect');
             let addedCount = 0;
 
@@ -2489,9 +2558,13 @@ function onExcelFileSelected(input) {
             });
 
             syncSchoolClassesFromStudents();
+            saveSchoolDataToStorage();
             closeModal('modalImportExcel');
             renderRoster();
-            alert("✓ تم بنجاح تسكين (" + addedCount + ") طالب في صفوفهم وشعبهم الحقيقية وفق المعاينة، وتحديث قائمة الشعب، وحفظهم في قاعدة البيانات!");
+            renderHierarchicalStats();
+            if (typeof renderUnifiedStudentsList === 'function') renderUnifiedStudentsList();
+            if (typeof renderUnifiedClassesList === 'function') renderUnifiedClassesList();
+            alert("✓ تم بنجاح تسكين (" + addedCount + ") طالب في صفوفهم وشعبهم الحقيقية وفق المعاينة، وتحديث قائمة الشعب، وحفظهم في قاعدة بيانات المتصفح الدائمة!");
         }
 
         function openSendCurrentClassAbsentModal() {
@@ -2623,6 +2696,7 @@ function onExcelFileSelected(input) {
             });
 
             updateClassSelectOptions(lastKey);
+            saveSchoolDataToStorage();
             closeModal('modalAddClass');
             renderRoster();
             if (typeof renderHierarchicalStats === 'function') renderHierarchicalStats();
@@ -3472,6 +3546,7 @@ function onExcelFileSelected(input) {
 
             // إعادة ترتيب وتحديث القوائم والشاشات
             updateClassSelectOptions(classKey);
+            saveSchoolDataToStorage();
             if (typeof updateHistorySchoolClassChips === 'function') updateHistorySchoolClassChips();
             renderRoster();
             renderHierarchicalStats();
@@ -3514,6 +3589,7 @@ function onExcelFileSelected(input) {
                 currentFilterClass = "ALL";
             }
 
+            saveSchoolDataToStorage();
             updateClassSelectOptions();
             if (typeof updateHistorySchoolClassChips === 'function') updateHistorySchoolClassChips();
             renderRoster();
@@ -3629,6 +3705,7 @@ function onExcelFileSelected(input) {
             };
 
             allStudents.push(newStudent);
+            saveSchoolDataToStorage();
             renderRoster();
             renderHierarchicalStats();
             renderUnifiedStudentsList();
@@ -3666,6 +3743,7 @@ function onExcelFileSelected(input) {
                 }
             }
 
+            saveSchoolDataToStorage();
             renderRoster();
             renderHierarchicalStats();
             renderUnifiedStudentsList();
@@ -3686,6 +3764,7 @@ function onExcelFileSelected(input) {
                     ...st,
                     deletedAt: `${nowDate} (${nowTime})`
                 });
+                saveSchoolDataToStorage();
                 updateTrashBadge();
                 renderRoster();
                 renderHierarchicalStats();
@@ -3745,6 +3824,7 @@ function onExcelFileSelected(input) {
             const restored = trashBinList.splice(idx, 1)[0];
             delete restored.deletedAt;
             allStudents.push(restored);
+            saveSchoolDataToStorage();
             renderTrashList();
             renderRoster();
             renderHierarchicalStats();
@@ -3754,6 +3834,7 @@ function onExcelFileSelected(input) {
         function deleteStudentPermanently(id) {
             if (confirm("هل أنت متأكد من الحذف النهائي لهذا الطالب من سلة المهملات؟ لا يمكن التراجع بعد ذلك.")) {
                 trashBinList = trashBinList.filter(s => s.id !== id);
+                saveSchoolDataToStorage();
                 renderTrashList();
                 alert("تم الحذف النهائي للطالب بنجاح.");
             }
@@ -3857,6 +3938,8 @@ function onExcelFileSelected(input) {
                         document.getElementById('appSchoolName').innerText = data.schoolName;
                     }
 
+                    syncSchoolClassesFromStudents();
+                    saveSchoolDataToStorage();
                     renderRoster();
                     renderHierarchicalStats();
                     renderHistoryLogs();
@@ -3900,6 +3983,7 @@ function onExcelFileSelected(input) {
                 currentFilterClass = "ALL";
                 currentHistorySchoolClassFilter = "ALL";
 
+                saveSchoolDataToStorage();
                 updateClassSelectOptions();
                 if (typeof updateHistorySchoolClassChips === 'function') updateHistorySchoolClassChips();
                 renderRoster();
