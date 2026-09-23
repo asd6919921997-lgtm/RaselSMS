@@ -287,7 +287,10 @@ class MainActivity : AppCompatActivity() {
                 selectedClassId = -1L
                 currentClassStudents.clear()
                 attendanceAdapter.notifyDataSetChanged()
-                updateClassStatsDisplay()
+                binding.tvClassStatTotal.text = "الطلاب: 0"
+                binding.tvClassStatPresent.text = "حاضر: 0"
+                binding.tvClassStatAbsent.text = "غائب: 0"
+                binding.tvClassStatRate.text = "نسبة الحضور: 100%"
                 return@launch
             }
 
