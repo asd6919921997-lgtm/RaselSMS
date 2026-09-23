@@ -767,4 +767,14 @@ class SchoolDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             cumulativeAttendanceRate = cumRate
         )
     }
+
+    @Synchronized
+    fun clearAllData() {
+        val db = writableDatabase
+        db.execSQL("DELETE FROM $TABLE_ATTENDANCE")
+        db.execSQL("DELETE FROM $TABLE_STUDENTS")
+        db.execSQL("DELETE FROM $TABLE_CLASSES")
+        db.execSQL("DELETE FROM $TABLE_SMS_LOGS")
+        db.execSQL("DELETE FROM $TABLE_HOLIDAYS")
+    }
 }

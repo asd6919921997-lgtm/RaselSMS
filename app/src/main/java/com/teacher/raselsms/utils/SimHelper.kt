@@ -77,4 +77,19 @@ object SimHelper {
 
         return simList
     }
+
+    /**
+     * تنظيف رقم الهاتف وتوحيده بصيغة فلسطينية موحدة
+     */
+    fun cleanPhoneNumber(phone: String): String {
+        return SmartContentParser.normalizePalestinePhone(phone)
+    }
+
+    /**
+     * التحقق من صحة رقم الجوال الفلسطيني (جوال 059 أو أريدو 056)
+     */
+    fun isValidPalestinianNumber(phone: String): Boolean {
+        return SmartContentParser.isPhoneNumberCell(phone)
+    }
 }
+
