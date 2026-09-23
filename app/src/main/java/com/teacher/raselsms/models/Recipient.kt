@@ -10,12 +10,15 @@ enum class SendStatus {
 }
 
 data class Recipient(
-    val id: Int,
+    val id: Long = 0,
     val name: String,
     val rawPhone: String,
     val cleanPhone: String,
-    val isValid: Boolean,
+    val isValid: Boolean = true,
     var isSelected: Boolean = true,
     var status: SendStatus = if (isValid) SendStatus.PENDING else SendStatus.INVALID,
     var statusMessage: String = ""
-)
+) {
+    constructor(id: Int, name: String, rawPhone: String, cleanPhone: String, isValid: Boolean) :
+        this(id.toLong(), name, rawPhone, cleanPhone, isValid)
+}

@@ -402,7 +402,7 @@ class MainActivity : AppCompatActivity() {
                     .setMessage("تم رصد ($absentCount) طالب غائب في ($className).\n\nهل ترغب في إرسال إشعار غياب لأولياء أمورهم الآن أم رصد باقي الصفوف أولاً؟")
                     .setPositiveButton("إرسال الآن") { _, _ ->
                         val absentRecipients = currentClassStudents.filter { it.isAbsent }.map {
-                            Recipient(id = it.student.id, name = it.student.name, cleanPhone = it.student.phone, rawPhone = it.student.phone)
+                            Recipient(id = it.student.id, name = it.student.name, cleanPhone = it.student.phone, rawPhone = it.student.phone, isValid = true)
                         }
                         openSendModalForList(absentRecipients, "إشعار غياب: $className")
                     }
@@ -442,7 +442,8 @@ class MainActivity : AppCompatActivity() {
                     id = it.first.id,
                     name = it.first.name,
                     cleanPhone = it.first.phone,
-                    rawPhone = it.first.phone
+                    rawPhone = it.first.phone,
+                    isValid = true
                 )
             }
 
@@ -721,7 +722,7 @@ class MainActivity : AppCompatActivity() {
     // ==========================================
 
     private fun setupSmsModule() {
-        recipientAdapter = RecipientAdapter(recipientsList) {
+        recipientAdapter = RecipientAdapter(recipientsList) { _, _ ->
             updateRecipientStats()
         }
         binding.rvRecipients.layoutManager = LinearLayoutManager(this)
