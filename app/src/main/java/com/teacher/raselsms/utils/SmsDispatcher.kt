@@ -27,7 +27,8 @@ class SmsDispatcher(private val context: Context) {
         subscriptionId: Int,
         delaySeconds: Int,
         onProgress: (current: Int, total: Int, recipient: Recipient) -> Unit,
-        onCompleted: (sentCount: Int, failedCount: Int, stoppedCount: Int, isStoppedByUser: Boolean) -> Unit
+        onCompleted: (sentCount: Int, failedCount: Int, stoppedCount: Int, isStoppedByUser: Boolean) -> Unit,
+        onMessageDispatched: ((recipient: Recipient, message: String, success: Boolean) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         isCancelled.set(false)
         val selectedRecipients = recipients.filter { it.isSelected && it.isValid }
@@ -72,6 +73,7 @@ class SmsDispatcher(private val context: Context) {
                 .replace("{طالب}", recipient.name)
 
             val success = sendSingleSms(smsManager, recipient.cleanPhone, customizedMessage)
+            onMessageDispatched?.invoke(recipient, customizedMessage, success)
 
             if (success) {
                 recipient.status = SendStatus.SENT
