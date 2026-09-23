@@ -2708,6 +2708,37 @@ function onExcelFileSelected(input) {
         // وظائف تبويب إرسال الرسائل (سستم مدرسي vs إرسال حر)
         // ==========================================
         let currentSmsMode = 'school';
+        // دوال الربط التلقائي مع أجهزة الأندرويد الحقيقية (Native Android Bridge)
+        window.onNativeContactPicked = function(name, phone) {
+            const cleanPhone = (typeof extractPhoneGeneral === 'function') ? (extractPhoneGeneral(phone) || phone) : phone;
+            smsRecipientsList.push({
+                name: name || "جهة اتصال",
+                phone: cleanPhone,
+                source: "⚡ جهات الاتصال",
+                class: "سجل الهاتف"
+            });
+            renderSmsRecipientsList();
+            alert("✓ تم إضافة جهة الاتصال: " + name + " (" + cleanPhone + ")");
+        };
+
+        window.onNativeSimsLoaded = function(simsJsonStr) {
+            try {
+                const sims = JSON.parse(simsJsonStr);
+                const sel = document.getElementById('smsSimSelect');
+                if (sel && Array.isArray(sims) && sims.length > 0) {
+                    sel.innerHTML = '';
+                    sims.forEach((sim, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = "SIM " + (idx + 1) + " (" + sim.name + ")";
+                        opt.text = "SIM " + (idx + 1) + " (" + sim.name + ")";
+                        sel.appendChild(opt);
+                    });
+                }
+            } catch(e) {
+                console.error("Error loading native sims:", e);
+            }
+        };
+
         let smsRecipientsList = []; // يبدأ فارغاً تماماً ونظيفاً
 
         function setSmsSendMode(mode) {
@@ -2973,6 +3004,10 @@ function onExcelFileSelected(input) {
         }
 
         function simulatePickContact() {
+            if (window.AndroidBridge && typeof window.AndroidBridge.pickContact === 'function') {
+                window.AndroidBridge.pickContact();
+                return;
+            }
             if ('contacts' in navigator && 'ContactsManager' in window) {
                 try {
                     const props = ['name', 'tel'];
@@ -3259,10 +3294,15 @@ function onExcelFileSelected(input) {
             let sentCount = 0;
             const nowTime = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 
+            const simSlotIndex = sim.includes("2") ? 1 : 0;
             smsRecipientsList.forEach(r => {
                 const personalizedMsg = msgTemplate.replace("{الاسم}", r.name);
                 const isSchool = r.source.includes("سستم");
                 const campaignTitle = isSchool ? "إشعار غياب مدرسي" : (quickTitle || "إرسال حر");
+
+                if (window.AndroidBridge && typeof window.AndroidBridge.sendSms === 'function') {
+                    window.AndroidBridge.sendSms(r.phone, personalizedMsg, simSlotIndex);
+                }
 
                 allSmsHistoryLogs.unshift({
                     id: allSmsHistoryLogs.length + 1,
@@ -3300,6 +3340,9 @@ function onExcelFileSelected(input) {
             let count = 0;
             absentList.forEach(st => {
                 const personalizedMsg = msgTemplate.replace("{الاسم}", st.name);
+                if (window.AndroidBridge && typeof window.AndroidBridge.sendSms === 'function') {
+                    window.AndroidBridge.sendSms(st.phone, personalizedMsg, 0);
+                }
                 allSmsHistoryLogs.unshift({
                     id: allSmsHistoryLogs.length + 1,
                     name: st.name,
